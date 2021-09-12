@@ -3,17 +3,21 @@ package coda.ratcopter.entities;
 import net.minecraft.entity.*;
 import net.minecraft.entity.ai.attributes.AttributeModifierMap;
 import net.minecraft.entity.ai.attributes.Attributes;
+import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.potion.Effects;
 import net.minecraft.util.*;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.vector.Vector3d;
 import net.minecraft.world.World;
+import net.minecraft.world.server.ServerWorld;
 
 import javax.annotation.Nullable;
 
-public class RatcopterEntity extends CreatureEntity {
+public class RatcopterEntity extends AnimalEntity {
 
 	public RatcopterEntity(EntityType<? extends RatcopterEntity> p_i48563_1_, World p_i48563_2_) {
 		super(p_i48563_1_, p_i48563_2_);
@@ -28,10 +32,6 @@ public class RatcopterEntity extends CreatureEntity {
 		return false;
 	}
 
-	public double getCustomJump() {
-		return this.getAttributeValue(Attributes.JUMP_STRENGTH);
-	}
-
 	public static AttributeModifierMap.MutableAttribute createBaseHorseAttributes() {
 		return MobEntity.createMobAttributes().add(Attributes.JUMP_STRENGTH).add(Attributes.MAX_HEALTH, 53.0D).add(Attributes.MOVEMENT_SPEED, (double)0.225F);
 	}
@@ -43,10 +43,6 @@ public class RatcopterEntity extends CreatureEntity {
 			p_110237_1_.startRiding(this);
 		}
 
-	}
-
-	protected boolean isImmobile() {
-		return super.isImmobile() && this.isVehicle();
 	}
 
 	public void travel(Vector3d p_213352_1_) {
@@ -70,6 +66,13 @@ public class RatcopterEntity extends CreatureEntity {
 					f1 = 0.0F;
 				}
 
+				if (this.onGround) {
+
+					Vector3d vector3d = this.getDeltaMovement();
+					this.setDeltaMovement(vector3d.x, 0, vector3d.z);
+					this.hasImpulse = true;
+				}
+
 				this.flyingSpeed = this.getSpeed() * 0.1F;
 				if (this.isControlledByLocalInstance()) {
 					this.setSpeed((float)this.getAttributeValue(Attributes.MOVEMENT_SPEED));
@@ -86,14 +89,18 @@ public class RatcopterEntity extends CreatureEntity {
 		}
 	}
 
+	@Nullable
+	@Override
+	public AgeableEntity getBreedOffspring(ServerWorld serverWorld, AgeableEntity ageableEntity) {
+		return null;
+	}
+
 	public void addAdditionalSaveData(CompoundNBT p_213281_1_) {
 		super.addAdditionalSaveData(p_213281_1_);
-
 	}
 
 	public void readAdditionalSaveData(CompoundNBT p_70037_1_) {
 		super.readAdditionalSaveData(p_70037_1_);
-
 	}
 
 	public boolean canBeControlledByRider() {
