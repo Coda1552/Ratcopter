@@ -1,5 +1,7 @@
 package coda.ratcopter.entities;
 
+import coda.ratcopter.client.RatcopterKeyBindings;
+import net.minecraft.client.Minecraft;
 import net.minecraft.entity.*;
 import net.minecraft.entity.ai.attributes.AttributeModifierMap;
 import net.minecraft.entity.ai.attributes.Attributes;
@@ -18,6 +20,9 @@ import net.minecraft.world.server.ServerWorld;
 import javax.annotation.Nullable;
 
 public class RatcopterEntity extends AnimalEntity {
+
+	public float acceleration = 0.0f;
+	public float turnPower = 0;
 
 	public RatcopterEntity(EntityType<? extends RatcopterEntity> p_i48563_1_, World p_i48563_2_) {
 		super(p_i48563_1_, p_i48563_2_);
@@ -49,12 +54,7 @@ public class RatcopterEntity extends AnimalEntity {
 		if (this.isAlive()) {
 			if (this.isVehicle() && this.canBeControlledByRider()) {
 				LivingEntity livingentity = (LivingEntity)this.getControllingPassenger();
-				this.yRot = livingentity.yRot;
-				this.yRotO = this.yRot;
-				this.xRot = livingentity.xRot * 0.5F;
-				this.setRot(this.yRot, this.xRot);
-				this.yBodyRot = this.yRot;
-				this.yHeadRot = this.yBodyRot;
+
 				float f = livingentity.xxa * 0.5F;
 				float f1 = livingentity.zza;
 				if (f1 <= 0.0F) {
@@ -66,12 +66,60 @@ public class RatcopterEntity extends AnimalEntity {
 					f1 = 0.0F;
 				}
 
-				if (this.onGround) {
+				if(livingentity instanceof PlayerEntity){
+					PlayerEntity player = (PlayerEntity) livingentity;
 
-					Vector3d vector3d = this.getDeltaMovement();
-					this.setDeltaMovement(vector3d.x, 0, vector3d.z);
-					this.hasImpulse = true;
+					turnPower += player.xxa * 3f;
+					if(turnPower > 10) turnPower = 10;
+					if(turnPower < -10) turnPower = -10;
+
+					if(turnPower < 0){
+						turnPower = Math.min(turnPower + 0.3f, 0);
+					}
+					else if(turnPower > 0){
+						turnPower = Math.max(turnPower - 0.3f, 0);
+					}
+
+					setYBodyRot(yBodyRot - (player.xxa * 3f));
+					this.yRot = yBodyRot;
+					this.yRotO = this.yRot;
+					this.setRot(this.yRot, this.xRot);
+					this.yBodyRot = this.yRot;
+					this.yHeadRot = this.yBodyRot;
 				}
+
+				float yDelta = 0;
+
+				if (Minecraft.getInstance().options.keyJump.isDown()) {
+					yDelta = 0.3f;
+				}
+				else if(RatcopterKeyBindings.RATCOPTER_DESCEND.isDown()){
+					yDelta = -0.3f;
+				}
+
+				if(livingentity.zza > 0){
+					acceleration = Math.min(acceleration + 0.3F, 10.0F);
+				}
+				else{
+//					System.out.println("Decelerating");
+//					System.out.println(acceleration);
+					acceleration = Math.max(acceleration - 0.3F + (livingentity.zza * 0.5F), 0f);
+				}
+
+				if(acceleration < 0){
+					acceleration = 0;
+				}
+
+				float calcX = MathHelper.sin(-yBodyRot * 0.017453292F);
+				float calcZ = MathHelper.cos(yBodyRot * 0.017453292F);
+
+//				System.out.println(livingentity.zza);
+//				System.out.println(acceleration);
+
+				this.setDeltaMovement(calcX * acceleration * 0.1F, yDelta, calcZ * acceleration * 0.1F);
+
+				this.hasImpulse = true;
+
 
 				this.flyingSpeed = this.getSpeed() * 0.1F;
 				if (this.isControlledByLocalInstance()) {
@@ -87,6 +135,11 @@ public class RatcopterEntity extends AnimalEntity {
 				super.travel(p_213352_1_);
 			}
 		}
+	}
+
+	@Override
+	public boolean isNoGravity() {
+		return !getPassengers().isEmpty();
 	}
 
 	@Nullable
@@ -107,13 +160,13 @@ public class RatcopterEntity extends AnimalEntity {
 		return this.getControllingPassenger() instanceof LivingEntity;
 	}
 
-	public void positionRider(Entity p_184232_1_) {
-		super.positionRider(p_184232_1_);
-		if (p_184232_1_ instanceof MobEntity) {
-			MobEntity mobentity = (MobEntity) p_184232_1_;
+/*	public void positionRider(Entity entity) {
+		super.positionRider(entity);
+		if (entity instanceof MobEntity) {
+			MobEntity mobentity = (MobEntity) entity;
 			this.yBodyRot = mobentity.yBodyRot;
 		}
-	}
+	}*/
 
 	@Nullable
 	public Entity getControllingPassenger() {
@@ -159,6 +212,25 @@ public class RatcopterEntity extends AnimalEntity {
 	public ActionResultType mobInteract(PlayerEntity p_230254_1_, Hand p_230254_2_) {
 		this.doPlayerRide(p_230254_1_);
 		return ActionResultType.sidedSuccess(this.level.isClientSide);
+	}
+
+	@Override
+	protected boolean canAddPassenger(Entity p_184219_1_) {
+		return this.getPassengers().size() < 2;
+	}
+
+	public void positionRider(Entity entity) {
+		if (this.hasPassenger(entity)) {
+			float f = 0f;
+			float f1 = (float)((this.removed ? (double)0.01F : this.getPassengersRidingOffset()) + entity.getMyRidingOffset());
+			if (this.getPassengers().size() > 1) {
+				int i = this.getPassengers().indexOf(entity);
+				f = -i;
+			}
+
+			Vector3d vector3d = (new Vector3d((double)f + 1.0F, 0.0D, 0.0D)).yRot(-this.yRot * ((float)Math.PI / 180F) - ((float)Math.PI / 2F));
+			entity.setPos(this.getX() + vector3d.x, this.getY() + (double)f1 - 1.53F, this.getZ() + vector3d.z);
+		}
 	}
 
 	public Vector3d getDismountLocationForPassenger(LivingEntity p_230268_1_) {

@@ -1,5 +1,6 @@
 package coda.ratcopter.client.model;
 
+import coda.ratcopter.entities.RatcopterEntity;
 import com.google.common.collect.ImmutableList;
 import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.vertex.IVertexBuilder;
@@ -10,7 +11,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
 @OnlyIn(Dist.CLIENT)
-public class RatcopterModel<T extends Entity> extends EntityModel<T> {
+public class RatcopterModel<T extends RatcopterEntity> extends EntityModel<T> {
     public ModelRenderer base;
     public ModelRenderer basket;
     public ModelRenderer tail1;
@@ -185,6 +186,9 @@ public class RatcopterModel<T extends Entity> extends EntityModel<T> {
 
     @Override
     public void setupAnim(T p_225597_1_, float p_225597_2_, float p_225597_3_, float p_225597_4_, float p_225597_5_, float p_225597_6_) {
+
+        base.xRot = (float) Math.toRadians(p_225597_1_.acceleration);
+        base.zRot = (float) Math.toRadians(p_225597_1_.turnPower);
 
     }
 
